@@ -3,6 +3,7 @@ from sgqlc.types import Type, Field, list_of
 from sgqlc.types.relay import Connection, connection_args
 from sgqlc.operation import Operation
 import pymongo
+import queue
 
 # Declare types matching GitHub GraphQL schema:
 class Issue(Type):
@@ -107,7 +108,7 @@ def generateGQL(initViewer,currentUser,followingEndCursor,followerEndCursor):
     initQueryNodes(following)
     initQueryNodes(followers)
 
-    print(op)
+    # print(op)
     return op
 
 #插入多条数据，将关注列表以及粉丝列表插入到用户表
@@ -115,19 +116,30 @@ def insertListData(coll,list):
     if(len(list)>0):
         coll.insert_many(list)
 
+taskQueue = queue.Queue(32)
+
 def main():
-    currentUser = "liangyuanpeng"
-    doViewer = False
-    op = generateGQL(doViewer, currentUser, '', '')
 
     # Call the endpoint:
     url = 'https://api.github.com/graphql'
     headers = {'Authorization': 'bearer xxx'}
     endpoint = HTTPEndpoint(url, headers)
+    beginReq("liangyuanpeng",True,endpoint, '', '')
+
+    while True:
+        nextUser = taskQueue.get()
+        print("---------------------------{0}".format(nextUser))
+        beginReq(nextUser, False, endpoint, '', '')
+
+
+def beginReq(currentUser,doViewer,endpoint,followingEndCursor,followerEndCursor):
+    print("beginReq---------------------:{0},{1}".format(currentUser,taskQueue.qsize()))
+    # currentUser = "liangyuanpeng"
+    # doViewer = True
+    op = generateGQL(doViewer, currentUser,followingEndCursor,followerEndCursor)
+
     data = endpoint(op)
-
-    print(data)
-
+# unexpected indent
     followersList = data.get("data").get("user").get("followers").get("nodes")
     followingList = data.get("data").get("user").get("following").get("nodes")
 
@@ -137,9 +149,11 @@ def main():
     usersColl = loadGithubDb["users"]
     followerColl = loadGithubDb["follower"]
     followingColl = loadGithubDb["following"]
+    progressColl = loadGithubDb["progress"]
     if doViewer:
         usersColl.insert_one(data.get("data").get("viewer"))
 
+    # print(followersList)
     insertListData(usersColl,followersList)
     insertListData(usersColl,followingList)
 
@@ -149,12 +163,54 @@ def main():
     haveNextFollowersPage = data.get("data").get("user").get("followers").get("pageInfo").get("hasNextPage")
     haveNextFollowingPage = data.get("data").get("user").get("following").get("pageInfo").get("hasNextPage")
 
-    followingEndCursor = data.get("data").get("user").get("followers").get("pageInfo").get("endCursor")
-    followerEndCursor = data.get("data").get("user").get("following").get("pageInfo").get("endCursor")
+    currentFollowingEndCursor = data.get("data").get("user").get("followers").get("pageInfo").get("endCursor")
+    currentFollowerEndCursor = data.get("data").get("user").get("following").get("pageInfo").get("endCursor")
+
+    if haveNextFollowersPage :
+        tmp = {
+            "user":currentUser,
+            "type":1,
+            "endCursor":currentFollowerEndCursor
+        }
+        progressColl.insert_one(tmp)
+        beginReq(currentUser,doViewer,endpoint,currentFollowingEndCursor,currentFollowerEndCursor)
+
+    if haveNextFollowingPage :
+        tmp = {
+            "user": currentUser,
+            "type": 1,
+            "endCursor": currentFollowingEndCursor
+        }
+        progressColl.insert_one(tmp)
+        beginReq(currentUser,doViewer,endpoint,currentFollowingEndCursor,currentFollowerEndCursor)
+
     # if haveNextFollowersPage:
     print("haveNextFollowersPage:{0}".format(haveNextFollowersPage))
     # if haveNextFollowingPage:
     print("haveNextFollowingPage:{0}".format(haveNextFollowingPage))
+
+    #去重
+    for user in followersList:
+        taskQueue.put(user["login"])
+    for user in followingList:
+        taskQueue.put(user["login"])
+
+    # if doViewer:
+    #     for user in followersList:
+    #         taskQueue.put(user["login"])
+    #     for user in followingList:
+    #         taskQueue.put(user["login"])
+    # else:
+    #
+    #     if followingEndCursor != "":
+    #         if followingEndCursor != None:
+    #             for user in followersList:
+    #                 taskQueue.put(user["login"])
+    #
+    #     if followerEndCursor != "":
+    #         if followerEndCursor != None:
+    #             for user in followingList:
+    #                 taskQueue.put(user["login"])
 
 if __name__ == '__main__':
     main()

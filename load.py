@@ -2,7 +2,6 @@ from sgqlc.endpoint.http import HTTPEndpoint
 from sgqlc.types import Type, Field, list_of
 from sgqlc.types.relay import Connection, connection_args
 from sgqlc.operation import Operation
-import json
 import pymongo
 
 # Declare types matching GitHub GraphQL schema:
@@ -50,7 +49,7 @@ class Query(Type):  # GraphQL's root
     user = Field(User,args={'login':str})
     viewer = Field(Viewer)
 
-def insertData(coll,data):
+def insertData(coll,currentUser,data):
     followingCollList = []
     for i, followerOne in enumerate(data):
         tmpStr = followerOne["name"]
@@ -72,144 +71,88 @@ def insertData(coll,data):
         }
         coll.insert_one(followerMap)
 
-# Generate an operation on Query, selecting fields:
-op = Operation(Query)
+def initQueryNodes(object):
+    object.nodes.login()
+    object.nodes.isSiteAdmin()
+    object.nodes.email()
+    object.nodes.name()
+    object.nodes.updatedAt()
+    object.nodes.company()
+    object.page_info.__fields__("has_next_page")
+    object.page_info.__fields__(end_cursor=True)
 
-viewer = op.viewer()
-viewer.login()
-viewer.isSiteAdmin()
-viewer.email()
-viewer.name()
-viewer.updatedAt()
-viewer.company()
+def generateGQL(initViewer,currentUser,followingEndCursor,followerEndCursor):
+    op = Operation(Query)
 
-currentUser = "liangyuanpeng"
-user = op.user(login=currentUser)
-followers = user.followers(first=10)
-following = user.following(first=10)
+    if initViewer:
+        viewer = op.viewer()
+        viewer.login()
+        viewer.isSiteAdmin()
+        viewer.email()
+        viewer.name()
+        viewer.updatedAt()
+        viewer.company()
 
-# op = Operation(Query)
-# viewer = op.viewer()
-# viewer.login()
-# viewer.isSiteAdmin()
-# viewer.email()
-# viewer.name()
-# viewer.updatedAt()
-# viewer.company()
+    user = op.user(login=currentUser)
+    if followingEndCursor == "":
+        following = user.following(first=100)
+    else:
+        following = user.following(first=100,after=followingEndCursor)
 
+    if followerEndCursor == "":
+        followers = user.followers(first=100)
+    else:
+        followers = user.followers(first=100,after=followerEndCursor)
 
-# currentUser = "liangyuanpeng"
-# user = op.user(login=currentUser)
-# followers = user.followers(first=10)
-# following = user.following(first=10,after="Y3Vyc29yOnYyOpKnd3lseWVha84AHWOq")
+    initQueryNodes(following)
+    initQueryNodes(followers)
 
+    print(op)
+    return op
 
-following.nodes.login()
-following.nodes.isSiteAdmin()
-following.nodes.email()
-following.nodes.name()
-following.nodes.updatedAt()
-following.nodes.company()
-following.page_info.__fields__("has_next_page")
-following.page_info.__fields__(end_cursor=True)
+#插入多条数据，将关注列表以及粉丝列表插入到用户表
+def insertListData(coll,list):
+    if(len(list)>0):
+        coll.insert_many(list)
 
-followers.nodes.login()
-followers.nodes.isSiteAdmin()
-followers.nodes.email()
-followers.nodes.name()
-followers.nodes.updatedAt()
-followers.nodes.company()
-followers.page_info.__fields__("has_next_page")
-followers.page_info.__fields__(end_cursor=True)
+def main():
+    currentUser = "liangyuanpeng"
+    doViewer = False;
+    op = generateGQL(doViewer, currentUser, '', '')
 
-#存储方案  用户表，粉丝表，关注表，仓库表，start表，watching表，fork表
+    # Call the endpoint:
+    url = 'https://api.github.com/graphql'
+    headers = {'Authorization': 'bearer xxx'}
+    endpoint = HTTPEndpoint(url, headers)
+    data = endpoint(op)
 
-# you can print the resulting GraphQL
-print(op)
+    followersList = data.get("data").get("user").get("followers").get("nodes")
+    followingList = data.get("data").get("user").get("following").get("nodes")
 
-# Call the endpoint:
-url = 'https://api.github.com/graphql'
-headers = {'Authorization': 'bearer xxx'}
-endpoint = HTTPEndpoint(url, headers)
-data = endpoint(op)
+    client = pymongo.MongoClient(host='xxx', port=5917)
+    loadGithubDb = client["github"]
 
-print(data.get("data").get("user"))
-print(data.get("data").get("viewer"))
-# print(data.get("data").get("user").get("followers").get("pageInfo"))
+    usersColl = loadGithubDb["users"]
+    followerColl = loadGithubDb["follower"]
+    followingColl = loadGithubDb["following"]
+    if doViewer:
+        usersColl.insert_one(data.get("data").get("viewer"))
 
-# print(data.get("data").get("user").get("followers").get("nodes"))
-# followersListStr =json.dumps(data.get("data").get("user").get("followers").get("nodes"))
-# print(type(followersListStr))
-# followersList = json.loads(followersListStr)
-# print(type(followersList))
-followersList = data.get("data").get("user").get("followers").get("nodes")
-followingList = data.get("data").get("user").get("following").get("nodes")
+    insertListData(usersColl,followersList)
+    insertListData(usersColl,followingList)
 
+    insertData(followerColl, currentUser, followersList)
+    insertData(followingColl, currentUser, followingList)
 
-client = pymongo.MongoClient(host='xxx',port=27017)
-loadGithubDb = client["github"]
+    haveNextFollowersPage = data.get("data").get("user").get("followers").get("pageInfo").get("hasNextPage")
+    haveNextFollowingPage = data.get("data").get("user").get("following").get("pageInfo").get("hasNextPage")
 
-usersColl = loadGithubDb["users"]
-followerColl = loadGithubDb["follower"]
-followingColl = loadGithubDb["following"]
-usersColl.insert_one(data.get("data").get("viewer"))
-if len(followersList) > 0:
-    usersColl.insert_many(followersList)
-if len(followingList) > 0:
-    usersColl.insert_many(followingList)
+    followingEndCursor = data.get("data").get("user").get("followers").get("pageInfo").get("endCursor")
+    followerEndCursor = data.get("data").get("user").get("following").get("pageInfo").get("endCursor")
+    # if haveNextFollowersPage:
+    print("haveNextFollowersPage:{0}".format(haveNextFollowersPage))
+    # if haveNextFollowingPage:
+    print("haveNextFollowingPage:{0}".format(haveNextFollowingPage))
 
-# followersCollList = []
-# for i,followerOne in enumerate(followersList):
-#     tmpStr = followerOne["name"]
-#     if tmpStr == "":
-#         tmpStr = followerOne["login"]
-#
-#     tmp = {
-#         "name":tmpStr,
-#         "email":followerOne["email"],
-#         "company":followerOne["company"]
-#     }
-#     followersCollList.append(tmp)
-#     # print("{0},{1}".format(i,followerOne))
-#
-# followingCollList = []
-# for i,followerOne in enumerate(followingList):
-#     tmpStr = followerOne["name"]
-#     if tmpStr == "":
-#         tmpStr = followerOne["login"]
-#
-#     tmp = {
-#         "name":tmpStr,
-#         "email":followerOne["email"],
-#         "company":followerOne["company"]
-#     }
-#     followingCollList.append(tmp)
-#     # print("{0},{1}".format(i,followerOne))
-#
-#
-# if len(followersCollList)>0:
-#     followerMap = {
-#         'user': currentUser,
-#         'following': followersCollList
-#     }
-#     followerColl.insert_one(followerMap)
-#
-# if len(followingCollList) > 0:
-#     followingMap = {
-#         'user' : currentUser,
-#         'following' : followingCollList
-#     }
-#     followingColl.insert_one(followingMap)
-
-insertData(followerColl,followersList)
-insertData(followingColl,followingList)
-
-haveNextFollowersPage = data.get("data").get("user").get("followers").get("pageInfo").get("hasNextPage")
-haveNextFollowingPage = data.get("data").get("user").get("following").get("pageInfo").get("hasNextPage")
-
-followingEndCursor = data.get("data").get("user").get("followers").get("pageInfo").get("endCursor")
-followerEndCursor = data.get("data").get("user").get("following").get("pageInfo").get("endCursor")
-# if haveNextFollowersPage:
-print("haveNextFollowersPage:{0}".format(haveNextFollowersPage))
-# if haveNextFollowingPage:
-print("haveNextFollowingPage:{0}".format(haveNextFollowingPage))
+if __name__ == '__main__':
+    main()

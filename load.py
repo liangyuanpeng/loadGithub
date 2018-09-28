@@ -117,7 +117,7 @@ def insertListData(coll,list):
 
 def main():
     currentUser = "liangyuanpeng"
-    doViewer = False;
+    doViewer = False
     op = generateGQL(doViewer, currentUser, '', '')
 
     # Call the endpoint:
@@ -125,6 +125,8 @@ def main():
     headers = {'Authorization': 'bearer xxx'}
     endpoint = HTTPEndpoint(url, headers)
     data = endpoint(op)
+
+    print(data)
 
     followersList = data.get("data").get("user").get("followers").get("nodes")
     followingList = data.get("data").get("user").get("following").get("nodes")

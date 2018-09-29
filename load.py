@@ -5,17 +5,6 @@ from sgqlc.operation import Operation
 import pymongo
 import queue
 
-# Declare types matching GitHub GraphQL schema:
-class Issue(Type):
-    number = int
-    title = str
-
-class IssueConnection(Connection):  # Connection provides page_info!
-    nodes = list_of(Issue)
-
-class Repository(Type):
-    issues = Field(IssueConnection, args=connection_args())
-
 class Follower(Type):
     login = str
     avatar_url = str
@@ -46,7 +35,6 @@ class Viewer(Type):
 
 
 class Query(Type):  # GraphQL's root
-    repository = Field(Repository, args={'owner': str, 'name': str})
     user = Field(User,args={'login':str})
     viewer = Field(Viewer)
 
@@ -97,13 +85,17 @@ def generateGQL(initViewer,currentUser,followingEndCursor,followerEndCursor):
     user = op.user(login=currentUser)
     if followingEndCursor == "":
         following = user.following(first=100)
+    elif followingEndCursor == None:
+        following = user.following(first=100)
     else:
         following = user.following(first=100,after=followingEndCursor)
 
     if followerEndCursor == "":
         followers = user.followers(first=100)
+    elif followerEndCursor == None:
+        followers = user.followers(first=100)
     else:
-        followers = user.followers(first=100,after=followerEndCursor)
+        followers = user.followers(first=100, after=followerEndCursor)
 
     initQueryNodes(following)
     initQueryNodes(followers)
@@ -116,7 +108,7 @@ def insertListData(coll,list):
     if(len(list)>0):
         coll.insert_many(list)
 
-taskQueue = queue.Queue(32)
+taskQueue = queue.Queue(0)
 
 def main():
 
@@ -138,8 +130,11 @@ def beginReq(currentUser,doViewer,endpoint,followingEndCursor,followerEndCursor)
     # doViewer = True
     op = generateGQL(doViewer, currentUser,followingEndCursor,followerEndCursor)
 
+    #TODO 请求数据条数
+    #TODO 翻页有问题 following
+    # print("do endpoint---------------------:{0},{1},{2}".format(currentUser, taskQueue.qsize(),op))
     data = endpoint(op)
-# unexpected indent
+    print("done endpoint---------------------:{0},{1}".format(currentUser, taskQueue.qsize()))
     followersList = data.get("data").get("user").get("followers").get("nodes")
     followingList = data.get("data").get("user").get("following").get("nodes")
 
@@ -154,6 +149,7 @@ def beginReq(currentUser,doViewer,endpoint,followingEndCursor,followerEndCursor)
         usersColl.insert_one(data.get("data").get("viewer"))
 
     # print(followersList)
+    # TODO 去重
     insertListData(usersColl,followersList)
     insertListData(usersColl,followingList)
 
@@ -163,8 +159,10 @@ def beginReq(currentUser,doViewer,endpoint,followingEndCursor,followerEndCursor)
     haveNextFollowersPage = data.get("data").get("user").get("followers").get("pageInfo").get("hasNextPage")
     haveNextFollowingPage = data.get("data").get("user").get("following").get("pageInfo").get("hasNextPage")
 
-    currentFollowingEndCursor = data.get("data").get("user").get("followers").get("pageInfo").get("endCursor")
-    currentFollowerEndCursor = data.get("data").get("user").get("following").get("pageInfo").get("endCursor")
+    currentFollowerEndCursor = data.get("data").get("user").get("followers").get("pageInfo").get("endCursor")
+    currentFollowingEndCursor = data.get("data").get("user").get("following").get("pageInfo").get("endCursor")
+
+    print("---------------------:{0},{1},{2},{3},{4},{5}".format(currentUser, taskQueue.qsize(),haveNextFollowersPage,currentFollowerEndCursor,haveNextFollowingPage,currentFollowingEndCursor))
 
     if haveNextFollowersPage :
         tmp = {
@@ -178,7 +176,7 @@ def beginReq(currentUser,doViewer,endpoint,followingEndCursor,followerEndCursor)
     if haveNextFollowingPage :
         tmp = {
             "user": currentUser,
-            "type": 1,
+            "type": 2,
             "endCursor": currentFollowingEndCursor
         }
         progressColl.insert_one(tmp)
@@ -189,10 +187,12 @@ def beginReq(currentUser,doViewer,endpoint,followingEndCursor,followerEndCursor)
     # if haveNextFollowingPage:
     print("haveNextFollowingPage:{0}".format(haveNextFollowingPage))
 
-    #去重
+    #阻塞了put方法  递归到32  没有get
     for user in followersList:
+        print("put {0} in followers queue,queue.size:{1}".format(user["login"],taskQueue.qsize()))
         taskQueue.put(user["login"])
     for user in followingList:
+        print("put {0} in following queue,queue.size:{1}".format(user["login"],taskQueue.qsize()))
         taskQueue.put(user["login"])
 
     # if doViewer:

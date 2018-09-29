@@ -31,6 +31,10 @@ class Viewer(Type):
     name = str
     company = str
 
+class Query(Type):  # GraphQL's root
+    user = Field(User,args={'login':str})
+    viewer = Field(Viewer)
+
 op = Operation(Query)
 viewer = op.viewer()
 viewer.login()

@@ -1,0 +1,20 @@
+language: python
+python: "3.7"
+
+notifications:
+	email: false
+
+sudo: false
+
+before_install:
+	- pip3 install tensorflow
+	- pip3 install codecov
+	- pip3 install coverage
+
+install: true
+
+script:
+	- coverage run load.py
+
+after_success:
+	- codecov

@@ -14,7 +14,7 @@ before_install:
 install: true
 
 script: 
-  - coverage run load.py
+  - coverage run generateGQL.py
 
 after_success:
   - codecov #运行codecov

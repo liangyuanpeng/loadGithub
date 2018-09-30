@@ -44,6 +44,6 @@ viewer.name()
 viewer.updatedAt()
 viewer.company()
 
-user = op.user(login=currentUser)
+user = op.user(login="liangyuanpeng")
 
 print(op)

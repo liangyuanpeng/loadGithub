@@ -4,6 +4,8 @@ from sgqlc.types.relay import Connection, connection_args
 from sgqlc.operation import Operation
 import pymongo
 import queue
+import time
+import _thread
 
 class Follower(Type):
     login = str
@@ -51,7 +53,6 @@ def insertData(coll,currentUser,data):
             "company": followerOne["company"]
         }
         followingCollList.append(tmp)
-        # print("{0},{1}".format(i,followerOne))
 
     if len(followingCollList) > 0:
         followerMap = {
@@ -104,54 +105,96 @@ def generateGQL(initViewer,currentUser,followingEndCursor,followerEndCursor):
     return op
 
 #插入多条数据，将关注列表以及粉丝列表插入到用户表
-def insertListData(coll,list):
-    if(len(list)>0):
-        coll.insert_many(list)
+def insertListToUser(coll,list):
+    realyList = []
+    for index,user in enumerate(list):
+        result = coll.find_one({'login': user["login"]})
+        # print("-----------------------------------mongo.login:{0}".format(result))
+        if result == None:
+            user["followingNP"] = True
+            user["followerNP"] = True
+            user["followingEndCursor"]=''
+            user["followerEndCursor"]=''
+            realyList.append(user)
 
-taskQueue = queue.Queue(0)
+    if (len(realyList) > 0):
+     coll.insert_many(realyList)
+
+taskQueue = queue.Queue(16)
+
+
+def saveOrUpdateProgress(coll,followingNP,followerNP,currentUser, followingEndCursor,followerEndCursor):
+
+    condition = {'login': currentUser}
+
+    result = coll.find_one(condition)
+
+    if result == None:
+        print("error")
+    else:
+        result["followingEndCursor"] = followingEndCursor
+        result["followerEndCursor"] = followerEndCursor
+        if not followingNP:
+            result["followingEndCursor"] = ''
+            result["followingNP"] = False
+        if not followerNP:
+            result["followerEndCursor"] = ''
+            result["followerNP"] = False
+        coll.update(condition, result)
+
+client = pymongo.MongoClient(host='xxx', port=5917)
+loadGithubDb = client["github"]
+usersColl = loadGithubDb["users"]
+followerColl = loadGithubDb["follower"]
+followingColl = loadGithubDb["following"]
 
 def main():
 
     # Call the endpoint:
     url = 'https://api.github.com/graphql'
     headers = {'Authorization': 'bearer xxx'}
-    endpoint = HTTPEndpoint(url, headers)
-    beginReq("liangyuanpeng",True,endpoint, '', '')
+    endpoint = HTTPEndpoint(url, headers,3)
+    # beginReq("liangyuanpeng",True,endpoint, '', '')
+    taskQueue.put("liangyuanpeng")
+    beginReq("liangyuanpeng",False,endpoint,'','')
+    progressCondition = {"followingNP":True}
+    print(progressCondition)
+
 
     while True:
-        nextUser = taskQueue.get()
-        print("---------------------------{0}".format(nextUser))
-        beginReq(nextUser, False, endpoint, '', '')
+        time.sleep(1)
+        # result = progressColl.find(progressCondition,limit=1)
+        result = usersColl.find(progressCondition, limit=5)
+        for one in result:
+            print("---------------------------{0}".format(one["login"]))
+            #TODO 任务去重
+            taskQueue.put(one["login"])
+            _thread.start_new_thread(beginReq,(one["login"], False, endpoint, one["followingEndCursor"], one["followerEndCursor"]))
+            # beginReq(one["login"], False, endpoint, one["followingEndCursor"], one["followerEndCursor"])
 
 
 def beginReq(currentUser,doViewer,endpoint,followingEndCursor,followerEndCursor):
-    print("beginReq---------------------:{0},{1}".format(currentUser,taskQueue.qsize()))
-    # currentUser = "liangyuanpeng"
-    # doViewer = True
+    print("begin generateGQL---------------------:{0}".format(currentUser))
     op = generateGQL(doViewer, currentUser,followingEndCursor,followerEndCursor)
 
     #TODO 请求数据条数
-    #TODO 翻页有问题 following
+    #TODO 超时处理  一超时就程序退出了
+    #TODO 超时不管用
+    #TODO 超时后把任务移除队列
     # print("do endpoint---------------------:{0},{1},{2}".format(currentUser, taskQueue.qsize(),op))
+    print("do endpoint---------------")
     data = endpoint(op)
-    print("done endpoint---------------------:{0},{1}".format(currentUser, taskQueue.qsize()))
+    print("done endpoint---------------------:{0}".format(currentUser))
     followersList = data.get("data").get("user").get("followers").get("nodes")
     followingList = data.get("data").get("user").get("following").get("nodes")
 
-    client = pymongo.MongoClient(host='xxx', port=5917)
-    loadGithubDb = client["github"]
 
-    usersColl = loadGithubDb["users"]
-    followerColl = loadGithubDb["follower"]
-    followingColl = loadGithubDb["following"]
-    progressColl = loadGithubDb["progress"]
+
     if doViewer:
         usersColl.insert_one(data.get("data").get("viewer"))
 
-    # print(followersList)
-    # TODO 去重
-    insertListData(usersColl,followersList)
-    insertListData(usersColl,followingList)
+    insertListToUser(usersColl,followersList)
+    insertListToUser(usersColl,followingList)
 
     insertData(followerColl, currentUser, followersList)
     insertData(followingColl, currentUser, followingList)
@@ -164,53 +207,13 @@ def beginReq(currentUser,doViewer,endpoint,followingEndCursor,followerEndCursor)
 
     print("---------------------:{0},{1},{2},{3},{4},{5}".format(currentUser, taskQueue.qsize(),haveNextFollowersPage,currentFollowerEndCursor,haveNextFollowingPage,currentFollowingEndCursor))
 
-    if haveNextFollowersPage :
-        tmp = {
-            "user":currentUser,
-            "type":1,
-            "endCursor":currentFollowerEndCursor
-        }
-        progressColl.insert_one(tmp)
-        beginReq(currentUser,doViewer,endpoint,currentFollowingEndCursor,currentFollowerEndCursor)
+    saveOrUpdateProgress(usersColl,haveNextFollowingPage,haveNextFollowersPage, currentUser, currentFollowingEndCursor,currentFollowerEndCursor)
 
-    if haveNextFollowingPage :
-        tmp = {
-            "user": currentUser,
-            "type": 2,
-            "endCursor": currentFollowingEndCursor
-        }
-        progressColl.insert_one(tmp)
-        beginReq(currentUser,doViewer,endpoint,currentFollowingEndCursor,currentFollowerEndCursor)
-
-    # if haveNextFollowersPage:
     print("haveNextFollowersPage:{0}".format(haveNextFollowersPage))
-    # if haveNextFollowingPage:
     print("haveNextFollowingPage:{0}".format(haveNextFollowingPage))
 
-    #阻塞了put方法  递归到32  没有get
-    for user in followersList:
-        print("put {0} in followers queue,queue.size:{1}".format(user["login"],taskQueue.qsize()))
-        taskQueue.put(user["login"])
-    for user in followingList:
-        print("put {0} in following queue,queue.size:{1}".format(user["login"],taskQueue.qsize()))
-        taskQueue.put(user["login"])
+    print("done req {0}".format(taskQueue.get()))
 
-    # if doViewer:
-    #     for user in followersList:
-    #         taskQueue.put(user["login"])
-    #     for user in followingList:
-    #         taskQueue.put(user["login"])
-    # else:
-    #
-    #     if followingEndCursor != "":
-    #         if followingEndCursor != None:
-    #             for user in followersList:
-    #                 taskQueue.put(user["login"])
-    #
-    #     if followerEndCursor != "":
-    #         if followerEndCursor != None:
-    #             for user in followingList:
-    #                 taskQueue.put(user["login"])
 
 if __name__ == '__main__':
     main()

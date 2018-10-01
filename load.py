@@ -6,6 +6,7 @@ import pymongo
 import queue
 import time
 import _thread
+import pylru
 
 class Follower(Type):
     login = str
@@ -108,13 +109,19 @@ def generateGQL(initViewer,currentUser,followingEndCursor,followerEndCursor):
 def insertListToUser(coll,list):
     realyList = []
     for index,user in enumerate(list):
+
+        if user["login"] in userCache:
+            print("######################### {0} in userCache".format(user["login"]))
+            continue
+
         result = coll.find_one({'login': user["login"]})
         # print("-----------------------------------mongo.login:{0}".format(result))
         if result == None:
             user["followingNP"] = True
             user["followerNP"] = True
-            user["followingEndCursor"]=''
-            user["followerEndCursor"]=''
+            user["followingEndCursor"] = ''
+            user["followerEndCursor"] = ''
+            userCache[user["login"]] = user["login"]
             realyList.append(user)
 
     if (len(realyList) > 0):
@@ -142,11 +149,14 @@ def saveOrUpdateProgress(coll,followingNP,followerNP,currentUser, followingEndCu
             result["followerNP"] = False
         coll.update(condition, result)
 
-client = pymongo.MongoClient(host='xxx', port=5917)
+client = pymongo.MongoClient(host='172.18.0.2', port=27017)
+# client = pymongo.MongoClient(host='172.17.0.3', port=27017)
 loadGithubDb = client["github"]
 usersColl = loadGithubDb["users"]
 followerColl = loadGithubDb["follower"]
 followingColl = loadGithubDb["following"]
+taskCache = pylru.lrucache(100)
+userCache = pylru.lrucache(10000)
 
 def main():
 
@@ -156,7 +166,7 @@ def main():
     endpoint = HTTPEndpoint(url, headers,3)
     # beginReq("liangyuanpeng",True,endpoint, '', '')
     taskQueue.put("liangyuanpeng")
-    beginReq("liangyuanpeng",False,endpoint,'','')
+    beginReq("liangyuanpeng",True,endpoint,'','')
     progressCondition = {"followingNP":True}
     print(progressCondition)
 
@@ -164,55 +174,68 @@ def main():
     while True:
         time.sleep(1)
         # result = progressColl.find(progressCondition,limit=1)
-        result = usersColl.find(progressCondition, limit=5)
+        result = usersColl.find(progressCondition, limit=500)
         for one in result:
             print("---------------------------{0}".format(one["login"]))
             #TODO 任务去重
+            if one["login"] in taskCache:
+                print("######################### {0} in taskCache".format(one["login"]))
+                continue
+            taskCache[one["login"]] = one["login"]
             taskQueue.put(one["login"])
             _thread.start_new_thread(beginReq,(one["login"], False, endpoint, one["followingEndCursor"], one["followerEndCursor"]))
             # beginReq(one["login"], False, endpoint, one["followingEndCursor"], one["followerEndCursor"])
-
 
 def beginReq(currentUser,doViewer,endpoint,followingEndCursor,followerEndCursor):
     print("begin generateGQL---------------------:{0}".format(currentUser))
     op = generateGQL(doViewer, currentUser,followingEndCursor,followerEndCursor)
 
     #TODO 请求数据条数
-    #TODO 超时处理  一超时就程序退出了
     #TODO 超时不管用
-    #TODO 超时后把任务移除队列
-    # print("do endpoint---------------------:{0},{1},{2}".format(currentUser, taskQueue.qsize(),op))
-    print("do endpoint---------------")
-    data = endpoint(op)
-    print("done endpoint---------------------:{0}".format(currentUser))
-    followersList = data.get("data").get("user").get("followers").get("nodes")
-    followingList = data.get("data").get("user").get("following").get("nodes")
+    try:
+        # print("do endpoint---------------------:{0},{1},{2}".format(currentUser, taskQueue.qsize(),op))
+        print("do endpoint---------------")
+        try:
+            data = endpoint(op)
+        except Exception as e:
+            print("done req {0}".format(taskQueue.get()))
+            print(e)
+        else:
+            print("done endpoint---------------------:{0}".format(currentUser))
+            # TODO BUG 报错
+            followersList = data.get("data").get("user").get("followers").get("nodes")
+            followingList = data.get("data").get("user").get("following").get("nodes")
 
 
+            if doViewer:
+                if currentUser not in userCache:
+                    tmp = usersColl.find_one({'login': currentUser})
+                    if tmp == None:
+                        usersColl.insert_one(data.get("data").get("viewer"))
 
-    if doViewer:
-        usersColl.insert_one(data.get("data").get("viewer"))
+            insertListToUser(usersColl,followersList)
+            insertListToUser(usersColl,followingList)
 
-    insertListToUser(usersColl,followersList)
-    insertListToUser(usersColl,followingList)
+            insertData(followerColl, currentUser, followersList)
+            insertData(followingColl, currentUser, followingList)
 
-    insertData(followerColl, currentUser, followersList)
-    insertData(followingColl, currentUser, followingList)
+            haveNextFollowersPage = data.get("data").get("user").get("followers").get("pageInfo").get("hasNextPage")
+            haveNextFollowingPage = data.get("data").get("user").get("following").get("pageInfo").get("hasNextPage")
 
-    haveNextFollowersPage = data.get("data").get("user").get("followers").get("pageInfo").get("hasNextPage")
-    haveNextFollowingPage = data.get("data").get("user").get("following").get("pageInfo").get("hasNextPage")
+            currentFollowerEndCursor = data.get("data").get("user").get("followers").get("pageInfo").get("endCursor")
+            currentFollowingEndCursor = data.get("data").get("user").get("following").get("pageInfo").get("endCursor")
 
-    currentFollowerEndCursor = data.get("data").get("user").get("followers").get("pageInfo").get("endCursor")
-    currentFollowingEndCursor = data.get("data").get("user").get("following").get("pageInfo").get("endCursor")
+            print("---------------------:{0},{1},{2},{3},{4},{5}".format(currentUser, taskQueue.qsize(),haveNextFollowersPage,currentFollowerEndCursor,haveNextFollowingPage,currentFollowingEndCursor))
 
-    print("---------------------:{0},{1},{2},{3},{4},{5}".format(currentUser, taskQueue.qsize(),haveNextFollowersPage,currentFollowerEndCursor,haveNextFollowingPage,currentFollowingEndCursor))
+            saveOrUpdateProgress(usersColl,haveNextFollowingPage,haveNextFollowersPage, currentUser, currentFollowingEndCursor,currentFollowerEndCursor)
 
-    saveOrUpdateProgress(usersColl,haveNextFollowingPage,haveNextFollowersPage, currentUser, currentFollowingEndCursor,currentFollowerEndCursor)
+            print("haveNextFollowersPage:{0}".format(haveNextFollowersPage))
+            print("haveNextFollowingPage:{0}".format(haveNextFollowingPage))
 
-    print("haveNextFollowersPage:{0}".format(haveNextFollowersPage))
-    print("haveNextFollowingPage:{0}".format(haveNextFollowingPage))
-
-    print("done req {0}".format(taskQueue.get()))
+            print("done req {0}".format(taskQueue.get()))
+    except Exception as e:
+        print("done req {0}，op:{1}".format(taskQueue.get(),op))
+        print(e)
 
 
 if __name__ == '__main__':

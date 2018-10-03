@@ -173,6 +173,13 @@ def main():
     progressCondition = {"followingNP":True}
     print(progressCondition)
 
+    initCacheCondition = {"isSiteAdmin": False}
+    # 预热10W数据到内存
+    initUsers = usersColl.find(initCacheCondition, limit=100000)
+    for u in initUsers:
+        userCache[u['login']] = 1
+    print("init cache done")
+
 
     while True:
         time.sleep(1)

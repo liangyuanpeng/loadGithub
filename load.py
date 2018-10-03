@@ -122,8 +122,8 @@ def insertListToUser(coll,list):
             user["followerNP"] = True
             user["followingEndCursor"] = ''
             user["followerEndCursor"] = ''
-            userCache[user["login"]] = user["login"]
             realyList.append(user)
+        userCache[user["login"]] = 1
 
     if (len(realyList) > 0):
      coll.insert_many(realyList)

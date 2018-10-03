@@ -2,6 +2,7 @@ from sgqlc.endpoint.http import HTTPEndpoint
 from sgqlc.types import Type, Field, list_of
 from sgqlc.types.relay import Connection, connection_args
 from sgqlc.operation import Operation
+import json
 
 class Follower(Type):
     login = str
@@ -46,4 +47,7 @@ viewer.company()
 
 user = op.user(login="liangyuanpeng")
 
-print(op)
+
+print(op.__to_graphql__())
+# print(json.dumps(op))
+# print(str(op, encoding='utf-8'))

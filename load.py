@@ -7,6 +7,7 @@ import queue
 import time
 import _thread
 import pylru
+import json
 
 class Follower(Type):
     login = str
@@ -127,7 +128,7 @@ def insertListToUser(coll,list):
     if (len(realyList) > 0):
      coll.insert_many(realyList)
 
-taskQueue = queue.Queue(16)
+
 
 
 def saveOrUpdateProgress(coll,followingNP,followerNP,currentUser, followingEndCursor,followerEndCursor):
@@ -150,15 +151,17 @@ def saveOrUpdateProgress(coll,followingNP,followerNP,currentUser, followingEndCu
         coll.update(condition, result)
 
 client = pymongo.MongoClient(host='172.18.0.2', port=27017)
-# client = pymongo.MongoClient(host='172.17.0.3', port=27017)
 loadGithubDb = client["github"]
 usersColl = loadGithubDb["users"]
 followerColl = loadGithubDb["follower"]
 followingColl = loadGithubDb["following"]
-taskCache = pylru.lrucache(100)
-userCache = pylru.lrucache(10000)
+taskCache = pylru.lrucache(8)
+userCache = pylru.lrucache(100000)
+taskQueue = queue.Queue(32)
 
 def main():
+
+
 
     # Call the endpoint:
     url = 'https://api.github.com/graphql'
@@ -174,7 +177,7 @@ def main():
     while True:
         time.sleep(1)
         # result = progressColl.find(progressCondition,limit=1)
-        result = usersColl.find(progressCondition, limit=500)
+        result = usersColl.find(progressCondition, limit=100)
         for one in result:
             print("---------------------------{0}".format(one["login"]))
             #TODO 任务去重
@@ -198,7 +201,7 @@ def beginReq(currentUser,doViewer,endpoint,followingEndCursor,followerEndCursor)
         try:
             data = endpoint(op)
         except Exception as e:
-            print("done req {0}".format(taskQueue.get()))
+            print("done req {0},op:{1},data:{2}".format(taskQueue.get(),op,json.dumps(data)))
             print(e)
         else:
             print("done endpoint---------------------:{0}".format(currentUser))
@@ -234,7 +237,7 @@ def beginReq(currentUser,doViewer,endpoint,followingEndCursor,followerEndCursor)
 
             print("done req {0}".format(taskQueue.get()))
     except Exception as e:
-        print("done req {0}，op:{1}".format(taskQueue.get(),op))
+        print("done req {0}，op:{1},data:{2}".format(taskQueue.get(),op,json.dumps(data)))
         print(e)
 
 

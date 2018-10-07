@@ -157,22 +157,21 @@ def saveOrUpdateProgress(coll,followingNP,followerNP,currentUser, followingEndCu
                 result["order"] = 0
         coll.update(condition, result)
 
-# 192.168.2.105
-client = pymongo.MongoClient (host = '127.0.0.1' , port = 27017)
+client = pymongo.MongoClient (host = '127.0.0.1' , port = 5917)
 loadGithubDb = client["github1"]
 usersColl = loadGithubDb["users1"]
 followerColl = loadGithubDb["follower1"]
 followingColl = loadGithubDb["following1"]
 taskCache = pylru.lrucache(8)
 taskQueue = queue.Queue(32)
-redisclient = redis.Redis(host='127.0.0.1',port=6379,db=0)
+redisclient = redis.Redis(host='127.0.0.1',port=5976,db=0)
 
 def main():
 
 
     # Call the endpoint:
     url = 'https://api.github.com/graphql'
-    headers = {'Authorization': 'bearer 2cfd5a77dfee97c84efed8780df13f37e15556ab'}
+    headers = {'Authorization': 'bearer xxx'}
     endpoint = HTTPEndpoint(url, headers,3)
     taskQueue.put("liangyuanpeng")
     beginReq("liangyuanpeng",True,endpoint,'','')

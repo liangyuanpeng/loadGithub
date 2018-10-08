@@ -160,13 +160,13 @@ def saveOrUpdateProgress(coll,followingNP,followerNP,currentUser, followingEndCu
                 result["order"] = 0
         coll.update(condition, result)
 
-client = pymongo.MongoClient (host = '127.0.0.1' , port = 5917)
+client = pymongo.MongoClient (host = '127.0.0.1' , port = 27017)
 loadGithubDb = client["github1"]
 usersColl = loadGithubDb["users1"]
 followerColl = loadGithubDb["follower1"]
 followingColl = loadGithubDb["following1"]
 taskQueue = queue.Queue(32)
-redisclient = redis.Redis(host='127.0.0.1',port=5976,db=0)
+redisclient = redis.Redis(host='127.0.0.1',port=6379,db=0)
 
 # 方式一
 class Settings(object):
@@ -200,7 +200,7 @@ def main():
 
     # Call the endpoint:
     url = 'https://api.github.com/graphql'
-    headers = {'Authorization': 'bearer xxx'}
+    headers = {'Authorization': 'bearer 64ed5f208045c63121dbba7bc6b33d757def63f1'}
     endpoint = HTTPEndpoint(url, headers,3)
     taskQueue.put("liangyuanpeng")
     beginReq("liangyuanpeng",True,endpoint,'','')
@@ -250,7 +250,7 @@ def loadTaskToRedis():
         randomInt = random.randint(1, 100)
         loadTaskCondition = {"$or": [{"followingNP": True}, {"followerNP": True}], "order": {"$lte": randomInt}}
         resultList = usersColl.find(loadTaskCondition)
-        print("===================== begin loadTaskToRedis list len :{0}".format(len(resultList)))
+        print("===================== begin loadTaskCondition :{0}".format(loadTaskCondition))
         for u in resultList:
             redisclient.setex("user_"+u["login"],1,random.randint(2,3)*60)
             if(redisclient.get("task_"+u["login"])) == None:

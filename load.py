@@ -200,7 +200,7 @@ def main():
 
     # Call the endpoint:
     url = 'https://api.github.com/graphql'
-    headers = {'Authorization': 'bearer 64ed5f208045c63121dbba7bc6b33d757def63f1'}
+    headers = {'Authorization': 'bearer xxx'}
     endpoint = HTTPEndpoint(url, headers,3)
     taskQueue.put("liangyuanpeng")
     beginReq("liangyuanpeng",True,endpoint,'','')

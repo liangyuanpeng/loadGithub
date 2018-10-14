@@ -160,13 +160,16 @@ def saveOrUpdateProgress(coll,followingNP,followerNP,currentUser, followingEndCu
                 result["order"] = 0
         coll.update(condition, result)
 
-client = pymongo.MongoClient (host = '127.0.0.1' , port = 27017)
+client = pymongo.MongoClient (host = '127.0.0.1' , port = 5917)
 loadGithubDb = client["github1"]
 usersColl = loadGithubDb["users1"]
 followerColl = loadGithubDb["follower1"]
 followingColl = loadGithubDb["following1"]
-taskQueue = queue.Queue(32)
-redisclient = redis.Redis(host='127.0.0.1',port=6379,db=0)
+taskQueue = queue.Queue(16)
+
+redisclient = redis.Redis(host='172.18.71.151',port=5379,db=0)
+# redisclient = redis.Redis(host='172.17.0.1',port=6379,db=0)
+
 
 # 方式一
 class Settings(object):
@@ -220,43 +223,50 @@ def main():
 
 def startInsertUser():
     while True:
-        time.sleep(1)
-        list = redisclient.srandmember("toInsertUser", 2000)
-        print("==================== begin each list.size:{0}".format(len(list)))
-        readyList = []
+        time.sleep(3)
+        list = redisclient.srandmember("toInsertUser", 10000)
+        print("==================== startInsertUser begin each list.size:{0}".format(len(list)))
+        # readyList = []
         for u in list:
             jsondata = json.loads(u)
             if redisclient.get("user_"+jsondata["login"]) == None:
                 tmp = usersColl.find_one({"login":jsondata["login"]})
                 if tmp == None :
-                    print("=========================  to add user:{0}".format(jsondata["login"]))
+                    print("========================= startInsertUser to add user:{0}".format(jsondata["login"]))
                     jsondata["order"] = random.randint(1,100)
-                    readyList.append(jsondata)
+                    # readyList.append(jsondata)
+                    try:
+                        usersColl.insert_one(jsondata)
+                        redisclient.setex("user_" + jsondata["login"], 1, random.randint(15, 20) * 60)
+                    except Exception as e:
+                        print(e)
                 else:
-                    print("#################,mongo exist,srem.user:{0}".format(jsondata["login"]))
+                    print("#################,startInsertUser mongo exist,srem.user:{0}".format(jsondata["login"]))
                     # usersColl.delete_one({"login":jsondata["login"]})
                     redisclient.srem("toInsertUser",u)
-                    redisclient.setex("user_" + jsondata["login"], 1, random.randint(2, 4) * 60)
+                    redisclient.setex("user_" + jsondata["login"], 1, random.randint(15, 20) * 60)
             else:
-                print("#################,redis exist,srem.user:{0}".format(jsondata["login"]))
+                print("#################,startInsertUser redis exist,srem.user:{0}".format(jsondata["login"]))
                 redisclient.srem("toInsertUser", u)
             # print(json.loads(u)["login"])
-        if len(readyList)>0:
-            usersColl.insert_many(readyList)
+        # if len(readyList)>0:
+        #     usersColl.insert_many(readyList)
 
 def loadTaskToRedis():
     while True:
-        time.sleep(1)
+        time.sleep(30 + random.randint(1, 30))
+        print("----------------------loadTaskToRedis  begin")
         randomInt = random.randint(1, 100)
         loadTaskCondition = {"$or": [{"followingNP": True}, {"followerNP": True}], "order": {"$lte": randomInt}}
         resultList = usersColl.find(loadTaskCondition)
-        print("===================== begin loadTaskCondition :{0}".format(loadTaskCondition))
+        print("===================== loadTaskToRedis begin loadTaskCondition :{0}".format(loadTaskCondition))
         for u in resultList:
-            redisclient.setex("user_"+u["login"],1,random.randint(2,3)*60)
+            redisclient.setex("user_" + u["login"], 1, random.randint(60, 60 * 60) + 60 * 60 * 24 * 7)
             if(redisclient.get("task_"+u["login"])) == None:
+                print("----------------------loadTaskToRedis sadd:{0}".format(u["login"]))
                 u["_id"] = ''
                 redisclient.sadd("loadTask",json.dumps(u))
-                redisclient.setex("task_"+u["login"],u["login"],random.randint(1,2)*60)
+                redisclient.setex("task_" + u["login"], u["login"], random.randint(3, 10) * 60)
 
 def beginReq(currentUser,doViewer,endpoint,followingEndCursor,followerEndCursor):
     print("begin generateGQL---------------------:{0}".format(currentUser))
@@ -311,6 +321,9 @@ def beginReq(currentUser,doViewer,endpoint,followingEndCursor,followerEndCursor)
         print("done req {0}，op:{1},data:{2}".format(taskQueue.get(),op,json.dumps(data)))
         print(e)
 
+
+def loadRepo():
+    print('')
 
 if __name__ == '__main__':
     main()

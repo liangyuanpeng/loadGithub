@@ -237,14 +237,14 @@ def startInsertUser():
                     # readyList.append(jsondata)
                     try:
                         usersColl.insert_one(jsondata)
-                        redisclient.setex("user_" + jsondata["login"], 1, random.randint(15, 20) * 60)
+                        redisclient.setex("user_" + jsondata["login"], 1, random.randint(60,60*60)+60*60*24*7)
                     except Exception as e:
                         print(e)
                 else:
                     print("#################,startInsertUser mongo exist,srem.user:{0}".format(jsondata["login"]))
                     # usersColl.delete_one({"login":jsondata["login"]})
                     redisclient.srem("toInsertUser",u)
-                    redisclient.setex("user_" + jsondata["login"], 1, random.randint(15, 20) * 60)
+                    redisclient.setex("user_" + jsondata["login"], 1, random.randint(60,60*60)+60*60*24*7)
             else:
                 print("#################,startInsertUser redis exist,srem.user:{0}".format(jsondata["login"]))
                 redisclient.srem("toInsertUser", u)

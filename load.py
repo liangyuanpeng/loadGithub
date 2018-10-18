@@ -22,6 +22,7 @@ class Follower(Type):
     updatedAt = str
     name = str
     company = str
+    createdAt = str
 
 class FollowingConnection(Connection):
     nodes = list_of(Follower)
@@ -41,6 +42,7 @@ class Viewer(Type):
     updatedAt = str
     name = str
     company = str
+    createdAt = str
 
 
 class Query(Type):  # GraphQL's root

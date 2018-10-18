@@ -223,7 +223,7 @@ def main():
 
 def startInsertUser():
     while True:
-        time.sleep(3)
+        time.sleep(30 + random.randint(1, 30))
         list = redisclient.srandmember("toInsertUser", 10000)
         print("==================== startInsertUser begin each list.size:{0}".format(len(list)))
         # readyList = []

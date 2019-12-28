@@ -182,6 +182,7 @@ worker=False
 viewer=False
 loader=False
 saver=False
+token=""
 
 
 # 方式一
@@ -210,6 +211,7 @@ def  initConfig():
     global worker
     global loader
     global saver
+    globale token
     
     env_dist = os.environ 
     
@@ -233,6 +235,10 @@ def  initConfig():
         if config.get("task","saver")!="":
             saver = config.getboolean("task","saver")    
             
+    if config.has_option("task","token"):
+        if config.get("task","token")!="":
+            token = config.getb("task","token")
+            
     if env_dist.get('LG_VIEWER')!=None:
         viewer=env_dist.get('LG_VIEWER')
     if env_dist.get('LG_LOADER')!=None:
@@ -241,6 +247,8 @@ def  initConfig():
         saver=env_dist.get('LG_SAVER')
     if env_dist.get('LG_WORKER')!=None:
         worker=env_dist.get('LG_WORKER')
+    if env_dist.get('LG_TOKEN')!=None:
+        token=env_dist.get('LG_TOKEN')
             
     redisHost = ""
     redisPort = 0
@@ -305,7 +313,7 @@ def main():
     # Call the endpoint:
     
     url = 'https://api.github.com/graphql'
-    headers = {'Authorization': 'bearer 9d58bb126d105413eb4153f4a9d659cfec033983'}
+    headers = {'Authorization': 'bearer '+token}
     endpoint = HTTPEndpoint(url, headers,3)
     
     # print("====={0}|{1}|{2}|{3}|".format(env_dist.get('LG_VIEWER'),env_dist.get('LG_LOADER'),env_dist.get('LG_SAVER'),env_dist.get('LG_WORKER')))

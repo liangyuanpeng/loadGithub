@@ -1,10 +1,15 @@
 version: "3.7"
 services:
-  addinone:
-    image: loadgithub
-    environment:
-      - LG_LOADER=true
-      - LG_SAVER=true
-      - LG_WORKER=true
-      - LG_VIEWER=true
-    network_mode: host
+    allinone:
+        image: loadgithub
+        environment:
+        - LG_LOADER=true
+        - LG_SAVER=true
+        - LG_WORKER=true
+        - LG_VIEWER=true
+
+    redis:
+        image: redis
+
+    mongo:
+        image: mongo

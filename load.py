@@ -250,11 +250,11 @@ def  initConfig():
     if env_dist.get('LG_TOKEN')!=None:
         token=env_dist.get('LG_TOKEN')
             
-    redisHost = ""
-    redisPort = 0
+    redisHost = "redis"
+    redisPort = 6379
     
-    mongoHost = ""
-    mongoPort = 0
+    mongoHost = "mongo"
+    mongoPort = 27017
     
     if config.has_option("redis","redis_host"):
         if config.has_option("redis","redis_port"):
@@ -294,6 +294,8 @@ def  initConfig():
         
     if env_dist.get('LG_MONGO_PORT')!=None:
         mongoPort =env_dist.get('LG_MONGO_PORT')
+        
+    print("conf|{0}|{1}|{2}|{3}".format(redisHost,redisPort,mongoHost,mongoPort))
     
     if mongoHost!=None:
         client = pymongo.MongoClient(host=mongoHost, port=mongoPort)
@@ -329,7 +331,7 @@ def main():
     if loader:
         _thread.start_new(loadTaskToRedis,())
     if worker:
-        _thread.start_new(worker,())
+        _thread.start_new(worker(endpoint),())
 
     #worker
     # while True:

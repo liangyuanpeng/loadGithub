@@ -237,7 +237,7 @@ def  initConfig():
             
     if config.has_option("task","token"):
         if config.get("task","token")!="":
-            token = config.getb("task","token")
+            token = config.get("task","token")
             
     if env_dist.get('LG_VIEWER')!=None:
         viewer=env_dist.get('LG_VIEWER')

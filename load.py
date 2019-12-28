@@ -398,7 +398,7 @@ def loadTaskToRedis():
                 u["_id"] = ''
                 redisclient.sadd("loadTask",json.dumps(u))
                 #user加入到task中，3-10分钟内不再执行该user的任务
-                redisclient.setex("task_" + u["login"], u["login"], random.randint(3, 10) * 60)
+                redisclient.setex("task_" + u["login"], random.randint(3, 10) * 60,u["login"])
 
 def doWorker(endpoint):
     

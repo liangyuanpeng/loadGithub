@@ -211,7 +211,7 @@ def  initConfig():
     global worker
     global loader
     global saver
-    globale token
+    global token
     
     env_dist = os.environ 
     

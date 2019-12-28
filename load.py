@@ -9,6 +9,7 @@ import _thread
 # import pylru
 import json
 import random
+import threading
 import redis
 
 import configparser
@@ -331,7 +332,9 @@ def main():
     if loader:
         _thread.start_new(loadTaskToRedis,())
     if worker:
-        _thread.start_new(worker(endpoint),())
+        # t1 = threading.Thread(target=worker, args=(endpoint,))  # args 元组类型
+        # t1.start()
+        _thread.start_new(doWorker,(endpoint,))
 
     #worker
     # while True:
@@ -396,7 +399,12 @@ def loadTaskToRedis():
                 #user加入到task中，3-10分钟内不再执行该user的任务
                 redisclient.setex("task_" + u["login"], u["login"], random.randint(3, 10) * 60)
 
-def worker(endpoint):
+def doWorker(endpoint):
+    
+    # url = 'https://api.github.com/graphql'
+    # headers = {'Authorization': 'bearer '+token}
+    # endpoint = HTTPEndpoint(url, headers,3)
+    
     while True:
         time.sleep(1)
         task = redisclient.spop("loadTask")

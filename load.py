@@ -337,8 +337,9 @@ def main():
         _thread.start_new(doWorker,(endpoint,))
 
     #worker
-    # while True:
-    #     time.sleep(1)
+    while True:
+        print("======================main sleep=========================")
+        time.sleep(300)
     #     task = redisclient.spop("loadTask")
     #     if task != None:
     #         print(task)

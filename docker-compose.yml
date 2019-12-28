@@ -10,6 +10,10 @@ services:
 
     redis:
         image: redis
+        ports:
+            - 5379:6379
 
     mongo:
         image: mongo
+        ports:
+            - 25017:27017

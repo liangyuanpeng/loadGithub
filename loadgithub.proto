@@ -1,0 +1,67 @@
+// [python quickstart](https://grpc.io/docs/quickstart/python.html#run-a-grpc-application)
+// python -m grpc_tools.protoc --python_out=. --grpc_python_out=. -I. helloworld.proto
+
+// helloworld.proto
+syntax = "proto3";
+
+ // 定义包名
+package service;
+
+service Greeter {
+    rpc SayHello(HelloRequest) returns (HelloReply) {}
+    rpc SayHelloAgain(HelloRequest) returns (HelloReply) {}
+}
+
+service GithubLoader{
+    rpc QueryFollow(QueryFollowRequest) returns (QueryFollowResp){}
+}
+
+message HelloRequest {
+    string name = 1;
+}
+
+message HelloReply {
+    string message = 1;
+}
+
+
+
+message QueryFollowRequest {
+    string login = 1;
+    string token =2;
+    string followingEndCursor=3;
+    string followerEndCursor = 4;
+}
+
+message QueryFollowResp {
+    QueryFollowData data = 1;
+}
+
+message QueryFollowData {
+    Node viewer =1;
+    GithubUser user = 2;
+}
+
+message Node{
+    string login = 1;
+    bool isSiteAdmin=2;
+    string email = 3;
+    string name = 4;
+    string updateAt = 5;
+    string company = 6;
+}
+
+message Follow{
+    repeated Node nodes = 1;
+    PageInfo pageInfo = 2;
+}
+
+message PageInfo{
+    bool hasNextPage = 1;
+    string endCursor = 2;
+}
+
+message GithubUser{
+    repeated Follow following = 1;
+    repeated Follow followers = 2;
+}

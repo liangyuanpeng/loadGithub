@@ -2,18 +2,3 @@ version: "3.7"
 services:
     allinone:
         image: loadgithub
-        environment:
-        - LG_LOADER=true
-        - LG_SAVER=true
-        - LG_WORKER=true
-        - LG_VIEWER=true
-
-    redis:
-        image: redis
-        ports:
-            - 5379:6379
-
-    mongo:
-        image: mongo
-        ports:
-            - 25017:27017

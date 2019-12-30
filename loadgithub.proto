@@ -47,7 +47,7 @@ message Node{
     bool isSiteAdmin=2;
     string email = 3;
     string name = 4;
-    string updateAt = 5;
+    string updatedAt = 5;
     string company = 6;
 }
 
@@ -56,12 +56,13 @@ message Follow{
     PageInfo pageInfo = 2;
 }
 
+
 message PageInfo{
     bool hasNextPage = 1;
     string endCursor = 2;
 }
 
 message GithubUser{
-    repeated Follow following = 1;
-    repeated Follow followers = 2;
+    Follow following = 1;
+    Follow followers = 2;
 }

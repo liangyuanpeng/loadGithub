@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='service',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x10loadgithub.proto\x12\x07service\"\x1c\n\x0cHelloRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x1d\n\nHelloReply\x12\x0f\n\x07message\x18\x01 \x01(\t\"i\n\x12QueryFollowRequest\x12\r\n\x05login\x18\x01 \x01(\t\x12\r\n\x05token\x18\x02 \x01(\t\x12\x1a\n\x12\x66ollowingEndCursor\x18\x03 \x01(\t\x12\x19\n\x11\x66ollowerEndCursor\x18\x04 \x01(\t\"9\n\x0fQueryFollowResp\x12&\n\x04\x64\x61ta\x18\x01 \x01(\x0b\x32\x18.service.QueryFollowData\"S\n\x0fQueryFollowData\x12\x1d\n\x06viewer\x18\x01 \x01(\x0b\x32\r.service.Node\x12!\n\x04user\x18\x02 \x01(\x0b\x32\x13.service.GithubUser\"j\n\x04Node\x12\r\n\x05login\x18\x01 \x01(\t\x12\x13\n\x0bisSiteAdmin\x18\x02 \x01(\x08\x12\r\n\x05\x65mail\x18\x03 \x01(\t\x12\x0c\n\x04name\x18\x04 \x01(\t\x12\x10\n\x08updateAt\x18\x05 \x01(\t\x12\x0f\n\x07\x63ompany\x18\x06 \x01(\t\"K\n\x06\x46ollow\x12\x1c\n\x05nodes\x18\x01 \x03(\x0b\x32\r.service.Node\x12#\n\x08pageInfo\x18\x02 \x01(\x0b\x32\x11.service.PageInfo\"2\n\x08PageInfo\x12\x13\n\x0bhasNextPage\x18\x01 \x01(\x08\x12\x11\n\tendCursor\x18\x02 \x01(\t\"T\n\nGithubUser\x12\"\n\tfollowing\x18\x01 \x03(\x0b\x32\x0f.service.Follow\x12\"\n\tfollowers\x18\x02 \x03(\x0b\x32\x0f.service.Follow2\x82\x01\n\x07Greeter\x12\x38\n\x08SayHello\x12\x15.service.HelloRequest\x1a\x13.service.HelloReply\"\x00\x12=\n\rSayHelloAgain\x12\x15.service.HelloRequest\x1a\x13.service.HelloReply\"\x00\x32V\n\x0cGithubLoader\x12\x46\n\x0bQueryFollow\x12\x1b.service.QueryFollowRequest\x1a\x18.service.QueryFollowResp\"\x00\x62\x06proto3')
+  serialized_pb=_b('\n\x10loadgithub.proto\x12\x07service\"\x1c\n\x0cHelloRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x1d\n\nHelloReply\x12\x0f\n\x07message\x18\x01 \x01(\t\"i\n\x12QueryFollowRequest\x12\r\n\x05login\x18\x01 \x01(\t\x12\r\n\x05token\x18\x02 \x01(\t\x12\x1a\n\x12\x66ollowingEndCursor\x18\x03 \x01(\t\x12\x19\n\x11\x66ollowerEndCursor\x18\x04 \x01(\t\"9\n\x0fQueryFollowResp\x12&\n\x04\x64\x61ta\x18\x01 \x01(\x0b\x32\x18.service.QueryFollowData\"S\n\x0fQueryFollowData\x12\x1d\n\x06viewer\x18\x01 \x01(\x0b\x32\r.service.Node\x12!\n\x04user\x18\x02 \x01(\x0b\x32\x13.service.GithubUser\"k\n\x04Node\x12\r\n\x05login\x18\x01 \x01(\t\x12\x13\n\x0bisSiteAdmin\x18\x02 \x01(\x08\x12\r\n\x05\x65mail\x18\x03 \x01(\t\x12\x0c\n\x04name\x18\x04 \x01(\t\x12\x11\n\tupdatedAt\x18\x05 \x01(\t\x12\x0f\n\x07\x63ompany\x18\x06 \x01(\t\"K\n\x06\x46ollow\x12\x1c\n\x05nodes\x18\x01 \x03(\x0b\x32\r.service.Node\x12#\n\x08pageInfo\x18\x02 \x01(\x0b\x32\x11.service.PageInfo\"2\n\x08PageInfo\x12\x13\n\x0bhasNextPage\x18\x01 \x01(\x08\x12\x11\n\tendCursor\x18\x02 \x01(\t\"T\n\nGithubUser\x12\"\n\tfollowing\x18\x01 \x01(\x0b\x32\x0f.service.Follow\x12\"\n\tfollowers\x18\x02 \x01(\x0b\x32\x0f.service.Follow2\x82\x01\n\x07Greeter\x12\x38\n\x08SayHello\x12\x15.service.HelloRequest\x1a\x13.service.HelloReply\"\x00\x12=\n\rSayHelloAgain\x12\x15.service.HelloRequest\x1a\x13.service.HelloReply\"\x00\x32V\n\x0cGithubLoader\x12\x46\n\x0bQueryFollow\x12\x1b.service.QueryFollowRequest\x1a\x18.service.QueryFollowResp\"\x00\x62\x06proto3')
 )
 
 
@@ -245,7 +245,7 @@ _NODE = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='updateAt', full_name='service.Node.updateAt', index=4,
+      name='updatedAt', full_name='service.Node.updatedAt', index=4,
       number=5, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -271,7 +271,7 @@ _NODE = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=341,
-  serialized_end=447,
+  serialized_end=448,
 )
 
 
@@ -308,8 +308,8 @@ _FOLLOW = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=449,
-  serialized_end=524,
+  serialized_start=450,
+  serialized_end=525,
 )
 
 
@@ -346,8 +346,8 @@ _PAGEINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=526,
-  serialized_end=576,
+  serialized_start=527,
+  serialized_end=577,
 )
 
 
@@ -360,15 +360,15 @@ _GITHUBUSER = _descriptor.Descriptor(
   fields=[
     _descriptor.FieldDescriptor(
       name='following', full_name='service.GithubUser.following', index=0,
-      number=1, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='followers', full_name='service.GithubUser.followers', index=1,
-      number=2, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
@@ -384,8 +384,8 @@ _GITHUBUSER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=578,
-  serialized_end=662,
+  serialized_start=579,
+  serialized_end=663,
 )
 
 _QUERYFOLLOWRESP.fields_by_name['data'].message_type = _QUERYFOLLOWDATA
@@ -477,8 +477,8 @@ _GREETER = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
-  serialized_start=665,
-  serialized_end=795,
+  serialized_start=666,
+  serialized_end=796,
   methods=[
   _descriptor.MethodDescriptor(
     name='SayHello',
@@ -510,8 +510,8 @@ _GITHUBLOADER = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=1,
   serialized_options=None,
-  serialized_start=797,
-  serialized_end=883,
+  serialized_start=798,
+  serialized_end=884,
   methods=[
   _descriptor.MethodDescriptor(
     name='QueryFollow',

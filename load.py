@@ -11,6 +11,7 @@ import json
 import random
 import threading
 import redis
+import traceback
 
 import configparser
 
@@ -130,7 +131,7 @@ def generateGQL(initViewer,currentUser,followingEndCursor,followerEndCursor):
 
     return op
    
-def beginReq(currentUser,doViewer,token,endpoint,followingEndCursor,followerEndCursor):
+def beginReq(currentUser,doViewer,token,followingEndCursor,followerEndCursor):
     print("begin generateGQL---------------------:{0}".format(currentUser))
     op = generateGQL(doViewer, currentUser,followingEndCursor,followerEndCursor)
     
@@ -146,32 +147,96 @@ def beginReq(currentUser,doViewer,token,endpoint,followingEndCursor,followerEndC
         try:
             print(op)
             data = endpoint(op)
-            print("endpoint.result.data:"+data)
+            # print("endpoint.result.data:"+data)
         except Exception as e:
             print("done op:{0},data:{1}".format(op,json.dumps(data)))
             print(e)
         else:
-            print("done endpoint---------------------:{0}".format(currentUser))
+            # json2python = json.loads(str)
+            
+            # print(res)
+            
+            resp = loadgithub_pb2.QueryFollowResp()
+            
+            # resp = loadgithub_pb2.QueryFollowResp(data=res)
+            # print(resp)
+            
+            # print("done endpoint---------------------:{0}".format(currentUser))
             followersList = data.get("data").get("user").get("followers").get("nodes")
             followingList = data.get("data").get("user").get("following").get("nodes")
 
+            followers = loadgithub_pb2.Follow()
+            following = loadgithub_pb2.Follow()
 
-            haveNextFollowersPage = data.get("data").get("user").get("followers").get("pageInfo").get("hasNextPage")
-            haveNextFollowingPage = data.get("data").get("user").get("following").get("pageInfo").get("hasNextPage")
+            for item in followersList:
+                print(item)
+                node = resp.data.user.followers.nodes.add()
+                node.login = item.get("login")
+                node.isSiteAdmin = item.get("isSiteAdmin")
+                email = ""
+                if item.get("email") != None:
+                    email = item.get("email")
+                node.email = email
+                name = ""
+                if item.get("name") != None:
+                    name = item.get("name")
+                node.name = name
+                node.updatedAt = item.get("updatedAt")
+                company = ""
+                if item.get("company") != None:
+                    company = item.get("company")
+                node.company = company
+                
+            for item in followingList:
+                # print(item)
+                node = resp.data.user.following.nodes.add()
+                # node = following.nodes.add()
+                node.login = item.get("login")
+                node.isSiteAdmin = item.get("isSiteAdmin")
+                email = ""
+                if item.get("email") != None:
+                    email = item.get("email")
+                node.email = email
+                name = ""
+                if item.get("name") != None:
+                    name = item.get("name")
+                node.name = name
+                node.updatedAt = item.get("updatedAt")
+                company = ""
+                if item.get("company") != None:
+                    company = item.get("company")
+                node.company = company
 
-            currentFollowerEndCursor = data.get("data").get("user").get("followers").get("pageInfo").get("endCursor")
-            currentFollowingEndCursor = data.get("data").get("user").get("following").get("pageInfo").get("endCursor")
-
-            print("---------------------:{0},{1},{2},{3},{4}".format(currentUser,haveNextFollowersPage,currentFollowerEndCursor,haveNextFollowingPage,currentFollowingEndCursor))
-
-            print("haveNextFollowersPage:{0}".format(haveNextFollowersPage))
-            print("haveNextFollowingPage:{0}".format(haveNextFollowingPage))
+            print(resp)
+                
+            followersPageInfo = data.get("data").get("user").get("followers").get("pageInfo")
+            followingPageInfo = data.get("data").get("user").get("following").get("pageInfo")
+            
+            # haveNextFollowersPage = data.get("data").get("user").get("followers").get("pageInfo").get("hasNextPage")
+            # haveNextFollowingPage = data.get("data").get("user").get("following").get("pageInfo").get("hasNextPage")
+            # currentFollowerEndCursor = data.get("data").get("user").get("followers").get("pageInfo").get("endCursor")
+            # currentFollowingEndCursor = data.get("data").get("user").get("following").get("pageInfo").get("endCursor")
+            # print("---------------------:{0},{1},{2},{3},{4}".format(currentUser,haveNextFollowersPage,currentFollowerEndCursor,haveNextFollowingPage,currentFollowingEndCursor))
+            # print("haveNextFollowersPage:{0}".format(haveNextFollowersPage))
+            # print("haveNextFollowingPage:{0}".format(haveNextFollowingPage))
 
     except Exception as e:
-        print("done op:{1},data:{2}".format(op,json.dumps(data)))
-        print(e)
+        # print("done op:{0},data:{1}".format(op,json.dumps(data)))
+        traceback.print_exc()
+        # print(e)
 
+class Dict(dict):
+    __setattr__ = dict.__setitem__
+    __getattr__ = dict.__getitem__
+
+def dict_to_object(dictObj):
+    if not isinstance(dictObj, dict):
+        return dictObj
+    inst=Dict()
+    for k,v in dictObj.items():
+        inst[k] = dict_to_object(v)
+    return inst
 
 if __name__ == '__main__':
-    # beginReq("liangyuanpeng",True,endpoint,'','')
+    beginReq("liangyuanpeng",True,"22987b33dcb0e2a86b7c7557ef4f320edff9f44f",'','')
     serve()

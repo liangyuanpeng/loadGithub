@@ -33,18 +33,17 @@ class Greeter(loadgithub_pb2_grpc.GreeterServicer):
     def SayHelloAgain(self, request, context):
         return loadgithub_pb2.HelloReply(message='hello {msg}'.format(msg = request.name))
 
-# class GithubLoader(loadgithub_pb2_grpc.GithubLoaderServicer){
-#     def QueryFollow(self,request,context):
-#         return loadgithub_pb2.QueryFollowResp()
-# }
+class GithubLoader(loadgithub_pb2_grpc.GithubLoaderServicer):
+    def QueryFollow(self,request,context):
+        return beginReq(request.login,False,request.token,request.followingEndCursor,request.followerEndCursor)
 
 def serve():
     # 启动 rpc 服务
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     loadgithub_pb2_grpc.add_GreeterServicer_to_server(Greeter(), server)
-    # loadgithub_pb2_grpc.add_GithubLoaderServicer_to_server(GithubLoader(),server)
+    loadgithub_pb2_grpc.add_GithubLoaderServicer_to_server(GithubLoader(),server)
     #[::]
-    server.add_insecure_port('[::]:50051')
+    server.add_insecure_port('[::]:5560')
     print("grpc starting!!!!!!")
     server.start()
     try:
@@ -138,6 +137,8 @@ def beginReq(currentUser,doViewer,token,followingEndCursor,followerEndCursor):
     url = 'https://api.github.com/graphql'
     headers = {'Authorization': 'bearer '+token}
     endpoint = HTTPEndpoint(url, headers,3)
+    
+    resp = loadgithub_pb2.QueryFollowResp()
 
     #TODO 请求数据条数
     #TODO 超时不管用
@@ -156,7 +157,7 @@ def beginReq(currentUser,doViewer,token,followingEndCursor,followerEndCursor):
             
             # print(res)
             
-            resp = loadgithub_pb2.QueryFollowResp()
+            
             
             # resp = loadgithub_pb2.QueryFollowResp(data=res)
             # print(resp)
@@ -164,9 +165,6 @@ def beginReq(currentUser,doViewer,token,followingEndCursor,followerEndCursor):
             # print("done endpoint---------------------:{0}".format(currentUser))
             followersList = data.get("data").get("user").get("followers").get("nodes")
             followingList = data.get("data").get("user").get("following").get("nodes")
-
-            followers = loadgithub_pb2.Follow()
-            following = loadgithub_pb2.Follow()
 
             for item in followersList:
                 print(item)
@@ -207,11 +205,20 @@ def beginReq(currentUser,doViewer,token,followingEndCursor,followerEndCursor):
                     company = item.get("company")
                 node.company = company
 
-            print(resp)
+           
                 
-            followersPageInfo = data.get("data").get("user").get("followers").get("pageInfo")
-            followingPageInfo = data.get("data").get("user").get("following").get("pageInfo")
+            followersPageInfoTmp = data.get("data").get("user").get("followers").get("pageInfo")
+            followingPageInfoTmp = data.get("data").get("user").get("following").get("pageInfo")
             
+           
+            
+            resp.data.user.following.pageInfo.hasNextPage=followingPageInfoTmp.get("hasNextPage")
+            resp.data.user.followers.pageInfo.hasNextPage=followersPageInfoTmp.get("hasNextPage")
+            
+            resp.data.user.following.pageInfo.endCursor=followingPageInfoTmp.get("endCursor")
+            resp.data.user.followers.pageInfo.endCursor=followersPageInfoTmp.get("endCursor")
+            
+            print(resp)
             # haveNextFollowersPage = data.get("data").get("user").get("followers").get("pageInfo").get("hasNextPage")
             # haveNextFollowingPage = data.get("data").get("user").get("following").get("pageInfo").get("hasNextPage")
             # currentFollowerEndCursor = data.get("data").get("user").get("followers").get("pageInfo").get("endCursor")
@@ -224,6 +231,7 @@ def beginReq(currentUser,doViewer,token,followingEndCursor,followerEndCursor):
         # print("done op:{0},data:{1}".format(op,json.dumps(data)))
         traceback.print_exc()
         # print(e)
+    return resp
 
 class Dict(dict):
     __setattr__ = dict.__setitem__

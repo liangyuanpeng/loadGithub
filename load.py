@@ -2,7 +2,7 @@ from sgqlc.endpoint.http import HTTPEndpoint
 from sgqlc.types import Type, Field, list_of
 from sgqlc.types.relay import Connection, connection_args
 from sgqlc.operation import Operation
-import pymongo
+#import pymongo
 import queue
 import time
 import _thread
@@ -10,7 +10,7 @@ import _thread
 import json
 import random
 import threading
-import redis
+#import redis
 import traceback
 
 import configparser

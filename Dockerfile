@@ -1,3 +1,4 @@
-FROM loadgithub-base
-ADD load.py /job/load.python
+FROM lgh-base
+ADD *.py /job/
+#ADD *.proto /job
 CMD ["python","/job/load.py"]

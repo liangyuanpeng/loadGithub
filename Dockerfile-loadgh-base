@@ -5,6 +5,6 @@ RUN pip install sgqlc
 #RUN pip install pylru
 #RUN pip install configparser
 #RUN pip install redis
-RUN pip install grpcio
+#RUN pip install grpcio
 RUN pip install grpcio-tools
 RUN pip install graphql-core
